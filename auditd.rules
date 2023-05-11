@@ -1,0 +1,286 @@
+# Remove any existing rules 
+
+-D 
+
+  
+
+# Buffer Size 
+
+-b 8192 
+
+  
+
+# Failure Mode 
+
+-f 1 
+
+  
+
+# Ignore errors 
+
+-i 
+
+## Audit the audit logs 
+
+-w /var/log/audit/ -p wra -k auditlog 
+
+-w /var/log/audit/ -p wra -k T1005_Data_From_Local_System_audit_log 
+
+-w /var/audit/ -p wra -k T1005_Data_From_Local_System_audit_log 
+
+  
+
+## Auditd configuration 
+
+-w /etc/audit/ -p wa -k auditconfig 
+
+-w /etc/libaudit.conf -p wa -k auditconfig 
+
+-w /etc/audisp/ -p wa -k audispconfig 
+
+  
+
+## Monitor for use of audit management tools 
+
+-w /sbin/auditctl -p x -k audittools 
+
+-w /sbin/auditd -p x -k audittools 
+
+-w /usr/sbin/auditd -p x -k audittools 
+
+-w /usr/sbin/augenrules -p x -k audittools 
+
+  
+
+## Access to all audit trails 
+
+-a always,exit -F path=/usr/sbin/ausearch -F perm=x -k T1005_Data_From_Local_System_audit_log 
+
+-a always,exit -F path=/usr/sbin/aureport -F perm=x -k T1005_Data_From_Local_System_audit_log 
+
+-a always,exit -F path=/usr/sbin/aulast -F perm=x -k T1005_Data_From_Local_System_audit_log 
+
+-a always,exit -F path=/usr/sbin/aulastlogin -F perm=x -k T1005_Data_From_Local_System_audit_log 
+
+-a always,exit -F path=/usr/sbin/auvirt -F perm=x -k T1005_Data_From_Local_System_audit_log 
+
+  
+
+# Filters --------------------------------------------------------------------- 
+
+  
+
+### We put these early because audit is a first match wins system. 
+
+  
+
+## Ignore SELinux AVC records 
+
+-a always,exclude -F msgtype=AVC 
+
+  
+
+## Ignore current working directory records 
+
+ 
+
+-a always,exclude -F msgtype=CWD 
+
+-a exclude,never -F msgtype=USER_ACCT 
+
+-a exclude,never -F msgtype=USER_CMD 
+
+-a exclude,never -F msgtype=USER_START 
+
+-a exclude,never -F msgtype=USER_END 
+
+-a exclude,never -F msgtype=CRED_REFR 
+
+-a exclude,never -F msgtype=CRED_DISP 
+
+ 
+
+  
+
+## Cron jobs fill the logs with stuff we normally don't want (works with SELinux) 
+
+-a never,user -F subj_type=crond_t 
+
+-a never,exit -F subj_type=crond_t 
+
+  
+
+## This prevents chrony from overwhelming the logs 
+
+#-a never,exit -F arch=b32 -S adjtimex -F auid=unset -F uid=chrony -F subj_type=chronyd_t 
+
+#-a never,exit -F arch=b64 -S adjtimex -F auid=unset -F uid=chrony -F subj_type=chronyd_t 
+
+  
+
+## This is not very interesting and wastes a lot of space if the server is public facing 
+
+-a always,exclude -F msgtype=CRYPTO_KEY_USER 
+
+  
+
+## VMware tools 
+
+-a never,exit -F arch=b32 -S fork -F success=0 -F path=/usr/lib/vmware-tools -F subj_type=initrc_t -F exit=-2 
+
+-a never,exit -F arch=b64 -S fork -F success=0 -F path=/usr/lib/vmware-tools -F subj_type=initrc_t -F exit=-2 
+
+  
+
+-a exit,never -F arch=b32 -S all -F exe=/usr/bin/vmtoolsd 
+
+-a exit,never -F arch=b64 -S all -F exe=/usr/bin/vmtoolsd 
+
+  
+
+## High Volume Event Filter (especially on Linux Workstations) 
+
+-a never,exit -F arch=b32 -F dir=/dev/shm -k sharedmemaccess 
+
+-a never,exit -F arch=b64 -F dir=/dev/shm -k sharedmemaccess 
+
+-a never,exit -F arch=b32 -F dir=/var/lock/lvm -k locklvm 
+
+-a never,exit -F arch=b64 -F dir=/var/lock/lvm -k locklvm 
+
+  
+
+## FileBeat 
+
+-a never,exit -F arch=b32 -F path=/opt/filebeat -k filebeat 
+
+-a never,exit -F arch=b64 -F path=/opt/filebeat -k filebeat 
+
+-a exit,never -F exe=/opt/Elastic/Agent/data/elastic-agent-fc4a15/components/metricbeat 
+
+ 
+
+  
+
+# Rules ----------------------------------------------------------------------- 
+
+  
+
+# passwd/shadow dump via text edit 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/cat -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/cat -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/ln -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/ln -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/less -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/less -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/head -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/head -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/tail -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/tail -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/nano -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/nano -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/vim -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/vim -F path=/etc/shadow -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/cp -F path=/etc/passwd -k passwd_dump 
+
+-a always,exit -F arch=b64 -F exe=/usr/bin/cp -F path=/etc/shadow -k passwd_dump 
+
+  
+
+  
+
+  
+
+  
+
+#monitor shadow and passwd access 
+
+  
+
+-a never,exit -F arch=b64 -F exe=/usr/bin/sudo -F path=/etc/passwd 
+
+-w /etc/shadow -p wr -k shadow 
+
+-w /etc/passwd -p wr -k passwd 
+
+ 
+
+#Dirty Pipe Auditd rules 
+ 
+-a always,exit -F arch=b64 -S splice -F a0=0x3 -F a2=0x5 -F a3=0x0 -F key=dirtypipe 
+-a always,exit -F arch=b64 -S splice -F a0=0x6 -F a2=0x8 -F a3=0x0 -F key=dirtypipe 
+-a always,exit -F arch=b64 -S splice -F a0=0x7 -F a2=0x9 -F a3=0x0 -F key=dirtypipe 
+
+  
+
+#whoami 
+
+-a always,exit -F arch=b64 -F exe=/bin/passwd -k whoami_usage  
+
+-a always,exit -F arch=b64 -F exe=/bin/whoami -k whoami_usage  
+
+-a always,exit -F arch=b64 -F exe=/bin/who -k whoami_usage - 
+
+-a always,exit -F arch=b64 -F exe=/bin/w -k whoami_usage 
+
+   
+
+#Remote System Discovery Linux 
+
+-w /usr/bin/ping -p x -k remote_system_discovery 
+
+-w /usr/bin/telnet -p x -k remote_system_discovery 
+
+-w /usr/bin/nmap -p x -k remote_system_discovery 
+
+-w /usr/bin/ncat -p x -k remote_system_discovery 
+
+ 
+
+#Linux Group Discovery 
+
+-w /etc/group -p r -k groupDiscovery 
+
+ -w /usr/bin/ldapsearch -p x -k groupDiscovery 
+
+ -w /bin/getent -p x -k groupDiscovery 
+
+ 
+
+ 
+
+# Valid Account actions 
+
+-w /etc/sudoers -p wa -k valid_account_actions 
+
+-w /usr/sbin/groupadd -p x -k valid_account_actions 
+
+-w /usr/sbin/groupmod -p x -k valid_account_actions 
+
+-w /usr/sbin/addgroup -p x -k valid_account_actions 
+
+-w /usr/sbin/usermod -p x -k valid_account_actions 
+
+ 
+
+#bashrc changes  
+
+-w /root/.bashrc -p w -k bashProfileAndBashrc_general  
+-w /root/.bash_profile -p w -k bashProfileAndBashrc_general 
+
+ 
